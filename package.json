@@ -6,8 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "socket": "ts-node --project tsconfig.server.json socket-server.ts"
+    "lint": "next lint",
+    "socket": "ts-node --project tsconfig.server.json socket-server.ts",
+    "build:socket": "tsc --project tsconfig.server.json",
+    "start:socket": "node dist/socket-server.js"
   },
   "dependencies": {
     "@ai-sdk/google": "^1.0.12",

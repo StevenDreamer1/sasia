@@ -1,12 +1,14 @@
 {
-  "extends": "./tsconfig.json",
   "compilerOptions": {
-    "module": "commonjs",
-    "outDir": "dist",
-    "lib": ["es2019"],
-    "target": "es2019",
-    "isolatedModules": false,
-    "noEmit": false
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "outDir": "./dist",
+    "rootDir": "./",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
   },
-  "include": ["socket-server.ts", "models/**/*.ts"]
+  "include": ["socket-server.ts", "lib/mongodb.ts", "models/**/*.ts"],
+  "exclude": ["node_modules", ".next"]
 }
