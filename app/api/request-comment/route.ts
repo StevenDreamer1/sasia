@@ -1,33 +1,31 @@
-import { NextResponse } from "next/server"
-import connectDB from "@/lib/db"
-import ServiceRequest from "@/models/ServiceRequest"
-import { getIO } from "@/lib/socket"
+import { NextResponse } from "next/server";
+import dbConnect from "@/lib/mongodb";
+import ServiceRequest from "@/models/ServiceRequest";
+// ❌ REMOVED: import { getIO } ...
 
 export async function POST(req: Request) {
-  await connectDB()
+  try {
+    await dbConnect();
+    const { requestId, text, sender } = await req.json();
 
-  const { requestId, text } = await req.json()
-
-  if (!requestId || !text) {
-    return NextResponse.json({ error: "Invalid data" }, { status: 400 })
-  }
-
-  await ServiceRequest.updateOne(
-    { _id: requestId },
-    {
-      $push: {
-        messages: {
-          sender: "admin",
-          text,
-          seen: false,
-          createdAt: new Date(),
-        },
-      },
+    const serviceRequest = await ServiceRequest.findById(requestId);
+    if (!serviceRequest) {
+      return NextResponse.json({ error: "Request not found" }, { status: 404 });
     }
-  )
 
-  const io = getIO()
-  io?.emit("new-message", { requestId })
+    const newComment = {
+      sender,
+      text,
+      createdAt: new Date(),
+    };
 
-  return NextResponse.json({ ok: true })
+    serviceRequest.comments.push(newComment);
+    await serviceRequest.save();
+
+    // ❌ REMOVED: getIO().emit(...)
+
+    return NextResponse.json(serviceRequest, { status: 200 });
+  } catch (error) {
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
 }

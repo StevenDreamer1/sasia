@@ -1,30 +1,33 @@
-import { NextResponse } from "next/server"
-import connectDB from "@/lib/db"
-import ServiceRequest from "@/models/ServiceRequest"
-import { getIO } from "@/lib/socket"
+import { NextResponse } from "next/server";
+import dbConnect from "@/lib/mongodb"; // or "@/lib/db" depending on your setup
+import ServiceRequest from "@/models/ServiceRequest";
+// ❌ REMOVED: import { getIO } ...
 
 export async function POST(req: Request) {
-  await connectDB()
+  try {
+    await dbConnect();
+    const { requestId, text, sender } = await req.json();
 
-  const { requestId, text } = await req.json()
+    const serviceRequest = await ServiceRequest.findById(requestId);
+    if (!serviceRequest) {
+      return NextResponse.json({ error: "Request not found" }, { status: 404 });
+    }
 
-  const request = await ServiceRequest.findById(requestId)
-  if (!request) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 })
+    const newComment = {
+      sender, // "Admin" or User Name
+      text,
+      createdAt: new Date(),
+    };
+
+    serviceRequest.comments.push(newComment);
+    await serviceRequest.save();
+
+    // ❌ REMOVED: getIO().to(...).emit(...) 
+    // The frontend will handle the socket emission now.
+
+    return NextResponse.json(serviceRequest, { status: 201 });
+  } catch (error) {
+    console.error("Comment Error:", error);
+    return NextResponse.json({ error: "Failed to add comment" }, { status: 500 });
   }
-
-  request.messages.push({
-    sender: "admin",
-    text,
-    createdAt: new Date(),
-    seen: false,
-  })
-
-  await request.save()
-
-  // 🔴 EMIT SOCKET EVENT
-  const io = getIO()
-  io?.emit("new-message", { requestId })
-
-  return NextResponse.json({ ok: true })
 }
