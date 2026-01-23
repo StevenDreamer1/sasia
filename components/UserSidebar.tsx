@@ -2,40 +2,45 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react"; // ✅ Import signOut
+import { signOut } from "next-auth/react"; 
 import { 
-  LayoutGrid, FolderOpen, MessageSquare, Users, Settings, LogOut, ShieldCheck
+  LayoutDashboard, PlusCircle, FolderHeart, Settings, LogOut, Sparkles, LifeBuoy
 } from "lucide-react";
 
 const menuItems = [
-  { name: "Overview", icon: LayoutGrid, path: "/admin/dashboard" },
-  { name: "All Projects", icon: FolderOpen, path: "/admin/projects" },
-  { name: "Live Chat", icon: MessageSquare, path: "/admin/chat" },
-  { name: "Clients", icon: Users, path: "/admin/clients" },
-  { name: "Settings", icon: Settings, path: "/admin/settings" },
+  { name: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
+  { name: "Service Request", icon: PlusCircle, path: "/dashboard/request" },
+  { name: "My Projects", icon: FolderHeart, path: "/dashboard/projects" },
+  // ✅ FIX: Updated path to match the new folder location
+  { name: "Live Support", icon: LifeBuoy, path: "/dashboard/chat" }, 
+  { name: "Settings", icon: Settings, path: "/dashboard/settings" },
 ];
 
-export default function AdminSidebar() {
+export default function UserSidebar() {
   const pathname = usePathname();
 
   return (
-    <div className="w-64 h-full bg-[#0F172A] text-white flex flex-col shadow-xl shrink-0 font-sans">
+    <div className="w-64 min-w-[16rem] h-full bg-[#0F172A] text-white flex flex-col shadow-xl shrink-0 font-sans border-r border-slate-800">
       
       {/* Brand Header */}
       <div className="p-6 flex items-center gap-3">
         <div className="h-10 w-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-900/50">
-          <ShieldCheck size={24} strokeWidth={2.5} />
+          <Sparkles size={24} strokeWidth={2.5} />
         </div>
         <div>
-          <h1 className="text-lg font-black tracking-tight">SaSia Admin</h1>
-          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Control Panel</p>
+          <h1 className="text-lg font-black tracking-tight">SaSia Studio</h1>
+          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Client Portal</p>
         </div>
       </div>
 
       {/* Navigation Menu */}
       <nav className="flex-1 px-4 space-y-2 mt-4">
         {menuItems.map((item) => {
-          const isActive = pathname.startsWith(item.path);
+          // Fix active state highlighting for sub-routes
+          const isActive = item.path === "/dashboard" 
+            ? pathname === "/dashboard"
+            : pathname.startsWith(item.path);
+
           return (
             <Link 
               key={item.path} 
@@ -56,7 +61,7 @@ export default function AdminSidebar() {
       {/* Logout Button */}
       <div className="p-4 mt-auto">
         <button 
-          onClick={() => signOut({ callbackUrl: "/login" })} // ✅ Logout Logic
+          onClick={() => signOut({ callbackUrl: "/login" })}
           className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-colors font-bold text-sm"
         >
           <LogOut size={18} />
