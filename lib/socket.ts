@@ -1,12 +1,10 @@
-import { Server } from "socket.io"
+import { io } from "socket.io-client";
 
-let io: Server | null = null
+// For Client-side
+export const socket = io("http://localhost:4000", {
+  autoConnect: false,
+});
 
-export function getIO(server?: any) {
-  if (!io && server) {
-    io = new Server(server, {
-      path: "/api/socket",
-    })
-  }
-  return io
-}
+// If you are trying to use socket.io on the server-side within Next.js:
+// Note: Next.js App Router doesn't support a persistent 'getIO' easily.
+// Usually, you emit from the frontend or use a separate backend.

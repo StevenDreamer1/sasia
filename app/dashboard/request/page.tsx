@@ -1,97 +1,59 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import DashboardSidebar from "@/components/DashboardSidebar"
-import DashboardHeader from "@/components/DashboardHeader"
+import { useState } from "react";
+import { socket } from "@/lib/socket";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Sparkles, Send } from "lucide-react";
 
-export default function RequestServicePage() {
-  const [serviceType, setServiceType] = useState("Video Editing")
-  const [instructions, setInstructions] = useState("")
-  const [files, setFiles] = useState<File[]>([])
-  const [loading, setLoading] = useState(false)
+export default function NewRequestPage() {
+  const [projectName, setProjectName] = useState("");
+  const router = useRouter();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-
-    try {
-      // 1️⃣ Upload files first
-      const formData = new FormData()
-      files.forEach((file) => formData.append("files", file))
-
-      const uploadRes = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      })
-
-      const uploadData = await uploadRes.json()
-
-      // 2️⃣ Create request
-      const res = await fetch("/api/request", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          serviceType,
-          instructions,
-          files: uploadData.files,
-        }),
-      })
-
-      if (!res.ok) throw new Error()
-
-      alert("Request submitted 🚀")
-      setInstructions("")
-      setFiles([])
-    } catch {
-      alert("Something went wrong ❌")
-    } finally {
-      setLoading(false)
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (projectName.trim()) {
+      socket.emit("new_request_created", {
+        client: "Stephen Palepu",
+        projectName: projectName
+      });
+      router.push("/dashboard");
     }
-  }
+  };
 
   return (
-    <div className="min-h-screen bg-black text-white flex">
-      <DashboardSidebar />
+    <div className="min-h-screen bg-[#F8F9FD] p-10">
+      <button onClick={() => router.back()} className="flex items-center gap-2 text-slate-400 hover:text-indigo-600 transition-colors mb-8 font-bold">
+        <ArrowLeft size={20} /> Back to Dashboard
+      </button>
 
-      <main className="flex-1 p-10">
-        <DashboardHeader />
+      <div className="max-w-2xl mx-auto bg-white rounded-[3rem] p-12 shadow-sm border border-slate-100">
+        <div className="h-16 w-16 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mb-6">
+          <Sparkles size={32} />
+        </div>
+        <h1 className="text-4xl font-black text-slate-800 mb-2">New Service Request</h1>
+        <p className="text-slate-500 font-medium mb-10 text-lg">Tell us what you need and we'll handle the rest.</p>
 
-        <form onSubmit={handleSubmit} className="max-w-3xl space-y-6">
-          <select
-            value={serviceType}
-            onChange={(e) => setServiceType(e.target.value)}
-            className="w-full bg-black border border-white/10 p-3 rounded"
+        <form onSubmit={handleSubmit} className="space-y-8">
+          <div className="space-y-3">
+            <label className="text-sm font-black text-slate-700 uppercase tracking-widest ml-1">Project Name</label>
+            <input 
+              type="text" 
+              placeholder="e.g. YouTube Branding, Video Editing..."
+              className="w-full px-8 py-5 bg-slate-50 border-none rounded-[2rem] text-lg font-medium focus:ring-4 ring-indigo-50 transition-all outline-none"
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+              required
+            />
+          </div>
+
+          <button 
+            type="submit" 
+            className="w-full py-6 bg-indigo-600 text-white rounded-[2rem] text-xl font-black flex items-center justify-center gap-3 hover:bg-indigo-700 shadow-2xl shadow-indigo-100 transition-all active:scale-95"
           >
-            <option>Video Editing</option>
-            <option>GFX / Motion Graphics</option>
-            <option>Photography</option>
-          </select>
-
-          <input
-            type="file"
-            multiple
-            onChange={(e) =>
-              setFiles(Array.from(e.target.files || []))
-            }
-            className="block"
-          />
-
-          <textarea
-            required
-            value={instructions}
-            onChange={(e) => setInstructions(e.target.value)}
-            className="w-full bg-black border border-white/10 p-3 rounded"
-            placeholder="Instructions"
-          />
-
-          <button
-            disabled={loading}
-            className="bg-accent px-6 py-3 rounded-full"
-          >
-            {loading ? "Submitting..." : "Submit Request"}
+            Send Request <Send size={24} />
           </button>
         </form>
-      </main>
+      </div>
     </div>
-  )
+  );
 }
