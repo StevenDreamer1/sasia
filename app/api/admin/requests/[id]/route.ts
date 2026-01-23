@@ -1,19 +1,32 @@
-import { NextResponse } from "next/server"
-import connectDB from "@/lib/db"
+import { NextResponse } from "next/server";
+import dbConnect from "@/lib/mongodb";
+import ServiceRequest from "@/models/ServiceRequest";
 
-import ServiceRequest from "@/models/ServiceRequest"
-
+// ✅ Fix: Type 'params' as a Promise
 export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { status } = await req.json()
+  try {
+    // ✅ Fix: Await the params before using them
+    const { id } = await params;
+    
+    const { status } = await req.json();
+    await dbConnect();
 
-  await connectDB()
+    const updatedRequest = await ServiceRequest.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
+    );
 
-  await ServiceRequest.findByIdAndUpdate(params.id, {
-    status,
-  })
+    if (!updatedRequest) {
+      return NextResponse.json({ error: "Request not found" }, { status: 404 });
+    }
 
-  return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, data: updatedRequest });
+  } catch (error) {
+    console.error("Update Error:", error);
+    return NextResponse.json({ error: "Failed to update status" }, { status: 500 });
+  }
 }
