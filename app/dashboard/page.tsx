@@ -2,27 +2,40 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { NotificationBell } from "@/components/NotificationSystem";
 import { 
   Plus, Search, TrendingUp, Briefcase, 
   Clock, ChevronRight, Star, Loader2
 } from "lucide-react";
 
+// Define a basic interface for your project type
+interface Project {
+  _id: string;
+  title: string;
+  status: string;
+  createdAt: string;
+}
+
 export default function UserDashboard() {
-  const [latestProjects, setLatestProjects] = useState([]);
+  const { data: session } = useSession();
+  const [latestProjects, setLatestProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ active: 0, finished: 0 });
 
-  // 1. Fetch real projects from your API
+  // Extract first name or fallback to "Creator"
+  const firstName = session?.user?.name?.split(" ")[0] || "Creator";
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         const res = await fetch("/api/projects");
         if (res.ok) {
-          const data = await res.json();
+          const data: Project[] = await res.json();
+          
           // Filter stats based on status
-          const active = data.filter((p: any) => p.status !== "Completed").length;
-          const finished = data.filter((p: any) => p.status === "Completed").length;
+          const active = data.filter((p) => p.status !== "Completed").length;
+          const finished = data.filter((p) => p.status === "Completed").length;
           
           setStats({ active, finished });
           // Show only the 3 most recent for the feed
@@ -49,7 +62,9 @@ export default function UserDashboard() {
       <div className="flex-1 p-10 pr-4">
         <header className="flex justify-between items-center mb-10">
           <div>
-            <h2 className="text-3xl font-extrabold text-slate-800 tracking-tight">Good morning, Stephen</h2>
+            <h2 className="text-3xl font-extrabold text-slate-800 tracking-tight">
+              Good morning, {firstName}
+            </h2>
             <p className="text-slate-500 font-medium">Here's what's happening with your projects today.</p>
           </div>
           <div className="relative w-64 group">
@@ -63,7 +78,7 @@ export default function UserDashboard() {
         </header>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
-          {/* Featured Card (Sourced from Tidal Light reference) */}
+          {/* Featured Card */}
           <div className="bg-indigo-600 rounded-[2.5rem] p-10 text-white relative overflow-hidden shadow-2xl shadow-indigo-200">
             <div className="relative z-10">
               <TrendingUp className="mb-4 opacity-80" size={32} />
@@ -73,7 +88,6 @@ export default function UserDashboard() {
                 <Star size={14} className="fill-white" /> +10% PRIORITY DELIVERY
               </div>
             </div>
-            {/* Decorative Blurs */}
             <div className="absolute -right-10 -bottom-10 h-48 w-48 bg-white/10 rounded-full blur-3xl"></div>
             <div className="absolute top-0 right-0 h-32 w-32 bg-indigo-400/20 rounded-full blur-2xl"></div>
           </div>
@@ -105,7 +119,7 @@ export default function UserDashboard() {
           </div>
           
           <div className="space-y-3">
-            {latestProjects.length > 0 ? latestProjects.map((project: any) => (
+            {latestProjects.length > 0 ? latestProjects.map((project) => (
               <Link 
                 key={project._id} 
                 href={`/dashboard/projects/${project._id}`}
@@ -139,7 +153,11 @@ export default function UserDashboard() {
         <div className="flex justify-end gap-4 items-center">
           <NotificationBell role="user" />
           <Link href="/dashboard/settings" className="h-12 w-12 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-100 overflow-hidden hover:ring-4 ring-indigo-50 transition-all">
-            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Stephen" alt="Profile" className="h-full w-full object-cover" />
+            <img 
+              src={session?.user?.image || `https://api.dicebear.com/7.x/avataaars/svg?seed=${firstName}`} 
+              alt="Profile" 
+              className="h-full w-full object-cover" 
+            />
           </Link>
         </div>
 
@@ -164,7 +182,7 @@ export default function UserDashboard() {
             <Clock size={14} className="text-indigo-500" /> Recent Activity
           </h4>
           <div className="space-y-3">
-             {latestProjects.slice(0, 1).map((p: any) => (
+             {latestProjects.slice(0, 1).map((p) => (
                <div key={p._id} className="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-sm">
                  <div className="flex gap-4">
                    <div className="h-2 w-2 rounded-full bg-indigo-500 mt-2 shrink-0 animate-pulse"></div>
