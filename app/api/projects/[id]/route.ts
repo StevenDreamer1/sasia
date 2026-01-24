@@ -1,38 +1,40 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
 import dbConnect from "@/lib/mongodb";
-import Project from "@/models/Project";
+import ServiceRequest from "@/models/ServiceRequest";
+import { authOptions } from "@/lib/authOptions";
 
-// GET: Fetch project details for Tracker/Overview
-export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> } // ✅ Fix for Next.js 15
+) {
   try {
-    await dbConnect();
+    const session = await getServerSession(authOptions);
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    // 1. Await params before using them (Critical Fix)
     const { id } = await params;
-    const project = await Project.findById(id);
-    if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    
+    await dbConnect();
+
+    // 2. Find the Project
+    const project = await ServiceRequest.findById(id);
+
+    if (!project) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    }
+
+    // 3. Security Check: Allow if User is Owner OR User is Admin
+    const isAdmin = session.user?.email === process.env.ADMIN_EMAIL;
+    const isOwner = project.user === session.user?.email; // Checks the saved email
+
+    if (!isOwner && !isAdmin) {
+      return NextResponse.json({ error: "Access Denied" }, { status: 403 });
+    }
+
     return NextResponse.json(project);
   } catch (error) {
-    return NextResponse.json({ error: "Server Error" }, { status: 500 });
-  }
-}
-
-// PATCH: Update Status or Delivery Link
-export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    await dbConnect();
-    const { id } = await params;
-    const body = await req.json();
-
-    const updatedProject = await Project.findByIdAndUpdate(
-      id,
-      { 
-        status: body.status, 
-        deliveryLink: body.deliveryLink || "" 
-      },
-      { new: true }
-    );
-
-    return NextResponse.json(updatedProject);
-  } catch (error) {
-    return NextResponse.json({ error: "Update Failed" }, { status: 500 });
+    console.error("Project Fetch Error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
