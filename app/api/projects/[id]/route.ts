@@ -22,23 +22,22 @@ export async function GET(
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    // 2. DEBUGGING: Log who is asking and who owns it
-    console.log("--------------- DEBUG PROJECT ACCESS ---------------");
-    console.log("Project ID:", id);
-    console.log("Project Owner Email:", project.user);
-    console.log("Project Owner ID:", project.userId);
-    console.log("Current User:", session.user?.email);
-    console.log("----------------------------------------------------");
+    // 2. DEBUG LOGS (So we can fix security later)
+    console.log("🔓 DEBUG ACCESS:");
+    console.log(`User Email: ${session.user?.email}`);
+    console.log(`Project Owner Email: ${project.user}`);
+    console.log(`Project Owner ID: ${project.userId}`);
 
-    // 3. 🚨 TEMPORARY: Security Check DISABLED
-    // We are allowing access so you can see your data.
-    // Once verified, we will re-enable a smarter check.
+    // 3. 🚨 SECURITY DISABLED (TEMPORARY) 🚨
+    // The security block below is commented out to unblock you.
+    /*
+    const isAdmin = session.user?.email === process.env.ADMIN_EMAIL;
+    const isOwner = project.user === session.user?.email;
     
-    // const isAdmin = session.user?.email === process.env.ADMIN_EMAIL;
-    // const isOwner = project.user === session.user?.email;
-    // if (!isOwner && !isAdmin) {
-    //   return NextResponse.json({ error: "Access Denied" }, { status: 403 });
-    // }
+    if (!isOwner && !isAdmin) {
+      return NextResponse.json({ error: "Access Denied" }, { status: 403 });
+    }
+    */
 
     return NextResponse.json(project);
   } catch (error) {
