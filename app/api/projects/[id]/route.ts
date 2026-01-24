@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import dbConnect from "@/lib/mongodb";
 import ServiceRequest from "@/models/ServiceRequest";
+import User from "@/models/User"; 
 import { authOptions } from "@/lib/authOptions";
 
 export async function GET(
@@ -15,33 +16,31 @@ export async function GET(
     const { id } = await params;
     await dbConnect();
 
-    // 1. Find the Project
     const project = await ServiceRequest.findById(id);
+    if (!project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
 
-    if (!project) {
-      return NextResponse.json({ error: "Project not found" }, { status: 404 });
-    }
+    // Find the logged-in user to get their ID
+    const currentUser = await User.findOne({ email: session.user?.email });
 
-    // 2. DEBUG LOGS (So we can fix security later)
-    console.log("🔓 DEBUG ACCESS:");
-    console.log(`User Email: ${session.user?.email}`);
-    console.log(`Project Owner Email: ${project.user}`);
-    console.log(`Project Owner ID: ${project.userId}`);
-
-    // 3. 🚨 SECURITY DISABLED (TEMPORARY) 🚨
-    // The security block below is commented out to unblock you.
-    /*
+    // --- 🔒 FINAL SECURITY CHECK ---
     const isAdmin = session.user?.email === process.env.ADMIN_EMAIL;
-    const isOwner = project.user === session.user?.email;
     
-    if (!isOwner && !isAdmin) {
+    // Check 1: Does the saved email match?
+    const isEmailOwner = project.user === session.user?.email;
+
+    // Check 2: Does the Database ID match? (Convert both to strings to be safe)
+    // We use safe navigation (?.) in case a field is missing
+    const isIdOwner = currentUser?._id && project.userId && 
+                      currentUser._id.toString() === project.userId.toString();
+
+    if (!isAdmin && !isEmailOwner && !isIdOwner) {
       return NextResponse.json({ error: "Access Denied" }, { status: 403 });
     }
-    */
+    // -------------------------------
 
     return NextResponse.json(project);
   } catch (error) {
-    console.error("Project Fetch Error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    console.error("Project Error:", error);
+    return NextResponse.json({ error: "Server Error" }, { status: 500 });
   }
 }
