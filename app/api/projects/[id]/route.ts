@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import dbConnect from "@/lib/mongodb";
 import ServiceRequest from "@/models/ServiceRequest";
-import User from "@/models/User"; 
 import { authOptions } from "@/lib/authOptions";
 
 export async function GET(
@@ -16,26 +15,34 @@ export async function GET(
     const { id } = await params;
     await dbConnect();
 
+    // 1. Find the Project
     const project = await ServiceRequest.findById(id);
-    if (!project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
 
-    const currentUser = await User.findOne({ email: session.user?.email });
+    if (!project) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
+    }
 
-    // --- DEBUG LOGS (Check these in Vercel Logs) ---
-    console.log("🔍 SECURITY CHECK:");
-    console.log(`🔹 Project ID: ${id}`);
-    console.log(`🔹 Logged In User: ${session.user?.email}`);
-    console.log(`🔹 Project Owner Email: ${project.user}`);
-    console.log(`🔹 Project Owner ID: ${project.userId}`);
-    console.log(`🔹 Current User ID: ${currentUser?._id}`);
-    // ------------------------------------------------
+    // 2. DEBUGGING: Log who is asking and who owns it
+    console.log("--------------- DEBUG PROJECT ACCESS ---------------");
+    console.log("Project ID:", id);
+    console.log("Project Owner Email:", project.user);
+    console.log("Project Owner ID:", project.userId);
+    console.log("Current User:", session.user?.email);
+    console.log("----------------------------------------------------");
 
-    // TEMPORARY FIX: Disable strict check to verify data loads
-    // Once we see the logs, we will re-enable the correct check.
+    // 3. 🚨 TEMPORARY: Security Check DISABLED
+    // We are allowing access so you can see your data.
+    // Once verified, we will re-enable a smarter check.
+    
+    // const isAdmin = session.user?.email === process.env.ADMIN_EMAIL;
+    // const isOwner = project.user === session.user?.email;
+    // if (!isOwner && !isAdmin) {
+    //   return NextResponse.json({ error: "Access Denied" }, { status: 403 });
+    // }
+
     return NextResponse.json(project);
-
   } catch (error) {
-    console.error("Project Details Error:", error);
+    console.error("Project Fetch Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
