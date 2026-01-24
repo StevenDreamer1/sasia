@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import dbConnect from "@/lib/mongodb";
 import ServiceRequest from "@/models/ServiceRequest";
+import User from "@/models/User"; // ✅ Added User import
 import { authOptions } from "@/lib/authOptions";
 import nodemailer from "nodemailer";
 
@@ -13,16 +14,17 @@ export async function GET(req: Request) {
 
     await dbConnect();
     
-    // If admin, fetch all. If user, fetch only theirs.
-    // Adjust this logic if you have specific Admin roles setup
+    // Admin Check: If email matches ADMIN_EMAIL, fetch all requests.
+    // Otherwise, fetch only requests belonging to the logged-in user.
     let query = {};
     if (session.user?.email !== process.env.ADMIN_EMAIL) {
-       query = { user: session.user?.email }; // Filter for normal users
+       query = { user: session.user?.email }; 
     }
 
     const projects = await ServiceRequest.find(query).sort({ createdAt: -1 });
     return NextResponse.json(projects);
   } catch (error) {
+    console.error("GET Projects Error:", error);
     return NextResponse.json({ error: "Failed to fetch projects" }, { status: 500 });
   }
 }
@@ -36,26 +38,35 @@ export async function POST(req: Request) {
     const { title, description, category } = await req.json();
     await dbConnect();
 
-    // 1. Save to Database
+    // 1. Find the User's Real MongoDB ID (Prevents Cast to ObjectId error)
+    const userProfile = await User.findOne({ email: session.user?.email });
+    
+    if (!userProfile) {
+        return NextResponse.json({ error: "User profile not found in database" }, { status: 404 });
+    }
+
+    // 2. Save to Database
+    // We map 'category' from the frontend to 'serviceType' for the schema
     const newRequest = await ServiceRequest.create({
-      user: session.user?.email, // ensure your schema uses 'user' or 'userId' consistently
-      userId: session.user?.email, // Saving both for safety based on your previous schemas
+      userId: userProfile._id,   // ✅ Use actual ObjectId
+      user: session.user?.email, 
       title,
       description,
-      category,
-      status: "Pending",
+      serviceType: category,     // ✅ Required by most ServiceRequest schemas
+      category: category,        
+      status: "pending",         // ✅ Lowercase to match typical Enum values
       createdAt: new Date(),
     });
 
-    // 2. SEND EMAIL (The Missing Part)
-    console.log("📧 (Projects Route) Starting Email Process...");
+    // 3. SEND EMAIL NOTIFICATION
+    console.log("📧 Starting Email Alert Process...");
 
     if (!process.env.EMAIL_SERVER_USER || !process.env.EMAIL_SERVER_PASSWORD) {
-      console.error("❌ CRITICAL: Email Env Vars missing in Vercel!");
+      console.error("❌ CRITICAL: Email credentials missing in Environment Variables!");
     } else {
         const transporter = nodemailer.createTransport({
           host: "smtp.gmail.com",
-          port: 465, // Try 465 (SSL) first, if fails we try 587
+          port: 465,
           secure: true, 
           auth: {
             user: process.env.EMAIL_SERVER_USER,
@@ -69,21 +80,30 @@ export async function POST(req: Request) {
             to: process.env.ADMIN_EMAIL, 
             subject: `🚀 New Project: ${title}`,
             html: `
-              <h2>New Project Request</h2>
-              <p><strong>Client:</strong> ${session.user?.email}</p>
-              <p><strong>Title:</strong> ${title}</p>
-              <p><strong>Description:</strong> ${description}</p>
+              <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+                <h2 style="color: #4F46E5;">New Project Request</h2>
+                <p><strong>Client Email:</strong> ${session.user?.email}</p>
+                <p><strong>Service Category:</strong> ${category}</p>
+                <p><strong>Title:</strong> ${title}</p>
+                <hr style="border: 0; border-top: 1px solid #eee;" />
+                <p><strong>Description:</strong></p>
+                <p style="background: #f9f9f9; padding: 15px; border-radius: 5px;">${description}</p>
+                <p style="font-size: 12px; color: #666; margin-top: 20px;">
+                  This is an automated notification from your Dashboard.
+                </p>
+              </div>
             `,
           });
           console.log("✅ Email Sent Successfully to Admin!");
         } catch (mailError: any) {
           console.error("❌ Email Sending Failed:", mailError.message);
+          // We don't return 500 here because the DB record was already created successfully.
         }
     }
 
     return NextResponse.json(newRequest, { status: 201 });
-  } catch (error) {
-    console.error("Server Error:", error);
-    return NextResponse.json({ error: "Failed to create project" }, { status: 500 });
+  } catch (error: any) {
+    console.error("❌ Project Creation Error:", error.message);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
